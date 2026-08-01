@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Login System | Hashed Passwords, 2FA & SQLi Defense</title>
+  <meta name="description" content="A state-of-the-art secure authentication web application featuring password hashing, 2FA TOTP QR codes, session management, and SQL injection protection.">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Lucide Icons CDN for sleek modern UI icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header>
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <i data-lucide="shield-check"></i>
+        </div>
+        <span>SecureAuth System</span>
+      </div>
+
+      <nav class="nav-pills">
+        <button class="nav-btn active" data-view="auth-section">
+          <i data-lucide="key-round"></i> Auth Portal
+        </button>
+        <button class="nav-btn" data-view="dashboard-section" id="nav-dashboard-btn" style="display: none;">
+          <i data-lucide="user-check"></i> Dashboard
+        </button>
+        <button class="nav-btn" data-view="sqli-section">
+          <i data-lucide="terminal"></i> SQLi Protection Sandbox
+        </button>
+        <button class="nav-btn" data-view="audit-section">
+          <i data-lucide="history"></i> Security Audit Logs
+        </button>
+      </nav>
+
+      <div class="user-badge" id="header-user-badge">
+        <div class="user-status-indicator">
+          <span class="status-dot"></span>
+          <span id="user-status-text">Guest Mode</span>
+        </div>
+        <button class="btn btn-secondary" id="logout-header-btn" style="display: none; width: auto; padding: 0.4rem 0.8rem;">
+          <i data-lucide="log-out"></i> Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    
+    <!-- 1. AUTH PORTAL (Login & Registration) -->
+    <section id="auth-section" class="view-section active">
+      <div class="auth-wrapper">
+        <div class="card">
+          <!-- Auth Mode Tabs -->
+          <div class="auth-tabs">
+            <button class="auth-tab-btn active" id="tab-login-btn">Login</button>
+            <button class="auth-tab-btn" id="tab-register-btn">Register</button>
+          </div>
+
+          <!-- LOGIN FORM -->
+          <form id="login-form">
+            <h2 class="card-title">Welcome Back</h2>
+            <p class="card-subtitle">Sign in with your secure credentials</p>
+
+            <div class="form-group">
+              <label class="form-label" for="login-username">Username or Email</label>
+              <div class="input-container">
+                <i data-lucide="user" class="input-icon"></i>
+                <input type="text" id="login-username" class="form-input" placeholder="admin or admin@secureauth.io" required autocomplete="username">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="login-password">Password</label>
+              <div class="input-container">
+                <i data-lucide="lock" class="input-icon"></i>
+                <input type="password" id="login-password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password">
+                <button type="button" class="toggle-password" data-target="login-password">
+                  <i data-lucide="eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="login-submit-btn">
+              <i data-lucide="shield-alert"></i> Secure Sign In
+            </button>
+
+            <!-- Quick Demo Credentials Filler -->
+            <div style="margin-top: 1.25rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">
+              <span>Demo Account:</span>
+              <button type="button" id="fill-demo-btn" style="background: none; border: none; color: var(--primary); font-weight: 600; cursor: pointer; text-decoration: underline; margin-left: 0.3rem;">
+                Auto-fill Admin Credentials
+              </button>
+            </div>
+          </form>
+
+          <!-- REGISTER FORM -->
+          <form id="register-form" style="display: none;">
+            <h2 class="card-title">Create Account</h2>
+            <p class="card-subtitle">Register with encrypted password hashing</p>
+
+            <div class="form-group">
+              <label class="form-label" for="reg-username">Username</label>
+              <div class="input-container">
+                <i data-lucide="user" class="input-icon"></i>
+                <input type="text" id="reg-username" class="form-input" placeholder="alex_dev" required autocomplete="username">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="reg-email">Email Address</label>
+              <div class="input-container">
+                <i data-lucide="mail" class="input-icon"></i>
+                <input type="email" id="reg-email" class="form-input" placeholder="alex@domain.com" required autocomplete="email">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="reg-password">Password</label>
+              <div class="input-container">
+                <i data-lucide="lock" class="input-icon"></i>
+                <input type="password" id="reg-password" class="form-input" placeholder="At least 8 chars" required autocomplete="new-password">
+                <button type="button" class="toggle-password" data-target="reg-password">
+                  <i data-lucide="eye"></i>
+                </button>
+              </div>
+              
+              <!-- Password Strength Progress -->
+              <div class="password-meter">
+                <div class="meter-bar-bg">
+                  <div class="meter-bar-fill" id="meter-fill"></div>
+                </div>
+                <div class="meter-text">
+                  <span>Strength: <strong id="meter-label">None</strong></span>
+                  <span id="meter-score">0%</span>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="register-submit-btn">
+              <i data-lucide="user-plus"></i> Register Secure Account
+            </button>
+          </form>
+
+        </div>
+      </div>
+    </section>
+
+
+    <!-- 2. SECURITY DASHBOARD SECTION -->
+    <section id="dashboard-section" class="view-section">
+      <div class="dashboard-grid">
+        
+        <!-- Left Profile Card -->
+        <div class="card profile-card">
+          <div class="avatar-ring">
+            <i data-lucide="user-check"></i>
+          </div>
+          <h3 id="dash-username" style="font-size: 1.25rem; font-weight: 700; color: #fff;">User Account</h3>
+          <p id="dash-email" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">user@example.com</p>
+
+          <div class="security-score-badge">
+            <i data-lucide="shield"></i> Security Score: <span id="dash-security-score">85%</span>
+          </div>
+
+          <div style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; text-align: left;">
+            <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Account Protection</h4>
+            
+            <div class="two-factor-banner">
+              <div class="banner-info">
+                <div class="banner-icon">
+                  <i data-lucide="smartphone"></i>
+                </div>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">Two-Factor Auth</div>
+                  <div id="2fa-status-text" style="font-size: 0.75rem; color: var(--text-muted);">Disabled</div>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="toggle-2fa-btn" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                Enable
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Active Sessions & Controls -->
+        <div>
+          <div class="card" style="margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+              <h3 style="font-size: 1.1rem; font-weight: 700;"><i data-lucide="laptop" style="vertical-align: middle; margin-right: 0.4rem; color: var(--primary);"></i> Active Sessions Management</h3>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Session Token Revocation</span>
+            </div>
+
+            <div id="active-sessions-list">
+              <!-- Session items injected dynamically -->
+            </div>
+          </div>
+
+          <!-- Quick Security Stats -->
+          <div class="card">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">
+              <i data-lucide="lock" style="vertical-align: middle; margin-right: 0.4rem; color: var(--success);"></i> Password Hashing Encryption Specs
+            </h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.85rem;">
+              <div style="background: rgba(0,0,0,0.3); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                <div style="color: var(--text-muted); font-size: 0.75rem;">Algorithm</div>
+                <div style="font-weight: 600; color: var(--primary); font-family: var(--font-mono);">PBKDF2-HMAC-SHA256</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                <div style="color: var(--text-muted); font-size: 0.75rem;">Iterations / Salt</div>
+                <div style="font-weight: 600; color: var(--success); font-family: var(--font-mono);">100,000 Rounds / 128-bit Salt</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- 3. SQL INJECTION EDUCATIONAL SANDBOX -->
+    <section id="sqli-section" class="view-section">
+      <div class="sandbox-card">
+        <h2 style="font-size: 1.4rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">
+          <i data-lucide="terminal" style="color: var(--warning); vertical-align: middle; margin-right: 0.5rem;"></i> SQL Injection Protection Demonstrator
+        </h2>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+          Compare how raw string concatenation queries are vulnerable to SQL logic bypass versus how Parameterized Prepared Statements neutralize attack vectors.
+        </p>
+
+        <!-- Test Input Panel -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label class="form-label" for="sqli-input-user">Simulated Username Input</label>
+            <input type="text" id="sqli-input-user" class="form-input" style="padding-left: 1rem;" value="' OR '1'='1">
+          </div>
+          <div>
+            <label class="form-label" for="sqli-input-pass">Simulated Password Input</label>
+            <input type="text" id="sqli-input-pass" class="form-input" style="padding-left: 1rem;" value="anything' OR '1'='1">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem;">
+          <button class="btn btn-primary" id="run-sqli-demo-btn" style="width: auto;">
+            <i data-lucide="play"></i> Execute Query Comparison
+          </button>
+          <button class="btn btn-secondary" id="preset-sqli-btn" style="width: auto;">
+            Load SQLi Attack Payload (`' OR '1'='1`)
+          </button>
+        </div>
+
+        <!-- Output Split Screen -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+          <!-- Vulnerable Output -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+              <span style="font-weight: 600; font-size: 0.9rem; color: var(--danger);">❌ Vulnerable Concatenation Query</span>
+              <span class="badge badge-failed" id="sqli-vuln-status">Bypassed!</span>
+            </div>
+            <pre class="console-output" id="sqli-vuln-console">Executing string concatenation...</pre>
+          </div>
+
+          <!-- Parameterized Safe Output -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+              <span style="font-weight: 600; font-size: 0.9rem; color: var(--success);">✅ Parameterized Prepared Statement</span>
+              <span class="badge badge-success" id="sqli-safe-status">Protected</span>
+            </div>
+            <pre class="console-output" id="sqli-safe-console">Executing prepared statement...</pre>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.25rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); font-size: 0.85rem;" id="sqli-explanation-box">
+          <strong>Security Principle:</strong> Prepared statements bind parameters separately from the SQL command tree. User inputs are never parsed as SQL instructions, preventing quotes and logic operators from altering query execution.
+        </div>
+      </div>
+    </section>
+
+
+    <!-- 4. SECURITY AUDIT LOGS SECTION -->
+    <section id="audit-section" class="view-section">
+      <div class="card">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+          <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff;">
+            <i data-lucide="history" style="color: var(--primary); vertical-align: middle; margin-right: 0.5rem;"></i> System Audit Log Stream
+          </h2>
+          <button class="btn btn-secondary" id="refresh-logs-btn" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+            <i data-lucide="rotate-cw"></i> Refresh Logs
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Action</th>
+                <th>User ID</th>
+                <th>Status</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="audit-logs-tbody">
+              <!-- Log rows injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 2FA VERIFICATION MODAL -->
+  <div class="modal-backdrop" id="modal-2fa-verify">
+    <div class="modal-content">
+      <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center;">Two-Factor Authentication</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-bottom: 1.5rem;">
+        Enter the 6-digit security code from your Authenticator app or enter an emergency backup code.
+      </p>
+
+      <form id="form-2fa-verify">
+        <div class="form-group">
+          <input type="text" id="input-2fa-code" class="form-input" placeholder="123456" maxlength="9" style="text-align: center; font-size: 1.5rem; letter-spacing: 6px; font-family: var(--font-mono); padding-left: 1rem;" required autocomplete="one-time-code">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+          Verify & Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 2FA SETUP MODAL -->
+  <div class="modal-backdrop" id="modal-2fa-setup">
+    <div class="modal-content" style="max-width: 520px; text-align: center;">
+      <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">Set Up 2FA Authenticator</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Scan this QR code with Google Authenticator, Authy, or 1Password.
+      </p>
+
+      <!-- QR Code Canvas -->
+      <div class="qr-container">
+        <canvas id="qr-canvas" width="180" height="180"></canvas>
+      </div>
+
+      <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem;">Base32 Manual Entry Secret:</div>
+      <div class="secret-key-display" id="setup-secret-key">JBSWY3DPEHPK3PXP</div>
+
+      <!-- Backup Codes Box -->
+      <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem; margin-bottom: 1.25rem; font-size: 0.75rem; text-align: left;">
+        <strong style="color: var(--warning);">Emergency Backup Codes (Save these securely):</strong>
+        <div id="setup-backup-codes" style="font-family: var(--font-mono); display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.4rem; color: var(--text-main);"></div>
+      </div>
+
+      <form id="form-2fa-confirm">
+        <div class="form-group">
+          <label class="form-label">Enter 6-Digit Code from App to Confirm Setup</label>
+          <input type="text" id="setup-confirm-code" class="form-input" placeholder="123456" maxlength="6" style="text-align: center; font-size: 1.2rem; letter-spacing: 4px; font-family: var(--font-mono); padding-left: 1rem;" required>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-secondary" id="close-2fa-setup-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Activate 2FA</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Toast Notifications Container -->
+  <div id="toast-container"></div>
+
+  <!-- Load Scripts -->
+  <script src="js/totp.js"></script>
+  <script src="js/hash.js"></script>
+  <script src="js/qrcode.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // Initialize Lucide SVG Icons
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>
